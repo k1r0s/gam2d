@@ -1,6 +1,21 @@
 ## gam2d
 
-trying to provide a lightweight solution for early game developers.
+Launch:
+
+`npm i`
+`npm run build`
+`http-server` (use what ever static server you love)
+
+You have to browse `./` in your browser (tested against chrome/chromium)
+
+> warning: keyboard is disabled by the game to track arrows and space key. That could mean you can't reload page with CTRL + R or open DevTools with F12 (neither CTRL + SHIFT + I). Use `inspect element` instead.
+
+---
+What this project is all about:
+
+I want to learn canvas rendering (html5 Canvas 2d API)
+
+I found funny but I found API was so low level that I decided to organize a lightweight solution for early game developers which I find useful for learning purposes.. (if you are looking for hard game development try threejs which is nice of course :D).
 
 Also separate most of the code in `common` dir which I would like to improve and add more common solutions.
 

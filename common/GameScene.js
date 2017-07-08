@@ -86,7 +86,7 @@ module.exports = GameScene = Class({
     },
 
     addObjects: function(){
-        for (var i = 0; i < arguments.length; i++) {
+        for (var i = arguments.length - 1; i > -1; i--) {
             this.addObject(arguments[i]);
         }
     },

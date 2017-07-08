@@ -45,8 +45,7 @@ module.exports = GameObject = Class({
 
         var nextBounds = this.getBounds(nextPosition);
 
-
-        for (var i = 0; i < this.colliders.length; i++) {
+        for (var i = this.colliders.length - 1; i > -1; i--) {
 
             var collision = nextBounds.down > this.colliders[i].getBounds().up &&
             nextBounds.left < this.colliders[i].getBounds().right &&

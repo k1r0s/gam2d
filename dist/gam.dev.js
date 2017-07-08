@@ -11,11 +11,35 @@ module.exports = GameControls = Class.static({
     MOUSE_RIGHT: false,
     MOUSE_LEFT: false,
 
+    ARROW_LEFT_CODE: 37,
+    ARROW_DOWN_CODE: 40,
+    ARROW_RIGHT_CODE: 39,
+    ARROW_UP_CODE: 38,
+    SPACE_CODE: 32,
+    CONTROL_CODE: 17,
+    MOUSE_RIGHT_CODE: 3,
+    MOUSE_LEFT_CODE: 1,
+
+    keyMapper: [],
+
+    setup: function(){
+        this.keyMapper[this.ARROW_LEFT_CODE] = 'ARROW_LEFT';
+        this.keyMapper[this.ARROW_DOWN_CODE] = 'ARROW_DOWN';
+        this.keyMapper[this.ARROW_RIGHT_CODE] = 'ARROW_RIGHT';
+        this.keyMapper[this.ARROW_UP_CODE] = 'ARROW_UP';
+        this.keyMapper[this.SPACE_CODE] = 'SPACE';
+        this.keyMapper[this.CONTROL_CODE] = 'CONTROL';
+        this.keyMapper[this.MOUSE_RIGHT_CODE] = 'ARROW_RIGHT';
+        this.keyMapper[this.MOUSE_LEFT_CODE] = 'MOUSE_LEFT';
+    },
+
     keyboard: function(){
+        this.setup();
         window.addEventListener("keydown", this.handle.bind(this));
         window.addEventListener("keyup", this.handle.bind(this));
     },
     mouse: function(){
+        this.setup();
         window.addEventListener("mousedown", this.handle.bind(this));
         window.addEventListener("mouseup", this.handle.bind(this));
     },
@@ -25,28 +49,8 @@ module.exports = GameControls = Class.static({
     },
 
     handle: function(evt){
-
         evt.preventDefault();
-
-        var pressed = this.isPressed(evt);
-
-        if(evt.which === 1){
-            this.MOUSE_LEFT = pressed;
-        }else if (evt.which === 3){
-            this.MOUSE_RIGHT = pressed;
-        }else if (evt.which === 39){
-            this.ARROW_RIGHT = pressed;
-        }else if (evt.which === 37){
-            this.ARROW_LEFT = pressed;
-        }else if (evt.which === 38){
-            this.ARROW_UP = pressed;
-        }else if (evt.which === 40){
-            this.ARROW_DOWN = pressed;
-        }else if (evt.which === 32){
-            this.SPACE = pressed;
-        }else if (evt.which === 17){
-            this.CONTROL = pressed;
-        }
+        this[this.keyMapper[evt.which]] = this.isPressed(evt);
     }
 });
 
@@ -98,8 +102,7 @@ module.exports = GameObject = Class({
 
         var nextBounds = this.getBounds(nextPosition);
 
-
-        for (var i = 0; i < this.colliders.length; i++) {
+        for (var i = this.colliders.length - 1; i > -1; i--) {
 
             var collision = nextBounds.down > this.colliders[i].getBounds().up &&
             nextBounds.left < this.colliders[i].getBounds().right &&
@@ -206,7 +209,7 @@ module.exports = GameScene = Class({
     },
 
     addObjects: function(){
-        for (var i = 0; i < arguments.length; i++) {
+        for (var i = arguments.length - 1; i > -1; i--) {
             this.addObject(arguments[i]);
         }
     },
@@ -554,7 +557,6 @@ var GameScene = require("../common/GameScene");
 var GameControls = require("../common/GameControls");
 var Player = require("./Player");
 var Wall = require("./Wall");
-// -----------------------------------------------------------------------------
 
 window.scene1 = new GameScene("#sampleScene");
 var player = new Player({x: 35, y: 220});
@@ -572,6 +574,6 @@ player.addColliders(wall1, wall2, leftBox, bottomBox, rightBox, topBox);
 
 GameControls.keyboard();
 
-scene1.start(30);
+scene1.start(70);
 
 },{"../common/GameControls":1,"../common/GameScene":3,"./Player":13,"./Wall":14}]},{},[15]);

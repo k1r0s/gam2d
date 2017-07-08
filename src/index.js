@@ -19,4 +19,4 @@ player.addColliders(wall1, wall2, leftBox, bottomBox, rightBox, topBox);
 
 GameControls.keyboard();
 
-scene1.start(30);
+scene1.start(70);

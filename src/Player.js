@@ -1,9 +1,9 @@
-var Class = require("kaop/Class");
-var clone = require("../common/clone");
-var GameObject = require("../common/GameObject");
-var GameControls = require("../common/GameControls");
+const { extend, override } = require("kaop");
+const clone = require("../common/clone");
+const GameObject = require("../common/GameObject");
+const GameControls = require("../common/GameControls");
 
-module.exports = Player = Class.inherits(GameObject, {
+module.exports = Player = extend(GameObject, {
 
     background: "../assets/octocat.png",
     speed: 1.25,
@@ -12,17 +12,18 @@ module.exports = Player = Class.inherits(GameObject, {
     imageHeight: 50,
     width: 30,
     height: 40,
+    tracking: 30,
 
-    constructor: function(position){
+    constructor: [override.apply, function(position){
         this.position.x = position.x;
         this.position.y = position.y;
 
         this.image = new Image;
         this.image.src = this.background;
-    },
+    }],
 
     computeMove: function(){
-        var finalSpeed = this.speed;
+        const finalSpeed = this.speed;
         if(GameControls.SPACE){
             finalSpeed *= 2;
         }
@@ -30,9 +31,9 @@ module.exports = Player = Class.inherits(GameObject, {
     },
 
     tick: function(){
-        var movementPerTick = this.computeMove();
+        const movementPerTick = this.computeMove();
 
-        var nextPosition = clone(this.position);
+        const nextPosition = clone(this.position);
 
         if(GameControls.ARROW_RIGHT){
             nextPosition.x += movementPerTick;
@@ -47,15 +48,15 @@ module.exports = Player = Class.inherits(GameObject, {
             nextPosition.y += movementPerTick;
         }
 
-        if(!this.willCollide(nextPosition)){
+        // if(!this.willCollide(nextPosition)){
             this.position = nextPosition;
-        }
+        // }
     },
 
     render: function(context){
 
-        var imageOffSetX = this.imageWidth - this.width;
-        var imageOffSetY = this.imageHeight - this.height;
+        const imageOffSetX = this.imageWidth - this.width;
+        const imageOffSetY = this.imageHeight - this.height;
 
         context.drawImage(
             this.image,

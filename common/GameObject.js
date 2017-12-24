@@ -1,14 +1,19 @@
-var Class = require("kaop/Class");
+const { extend, override } = require("kaop");
+const MeshObject = require("./MeshObject");
 
-module.exports = GameObject = Class({
+module.exports = GameObject = extend(MeshObject, {
 
     UID: undefined,
-    colliders: [],
-    position: {x: 0, y: 0},
-    width: 0,
-    height: 0,
+    colliders: undefined,
+    width: undefined,
+    height: undefined,
 
-    constructor: function(){},
+    constructor: [override.implement, function(parent, position, vectors){
+        parent(position, vectors);
+        this.colliders = [];
+        this.width = 0;
+        this.height = 0;
+    }],
 
     offSetX: function(nextPosition){
         return nextPosition ?
@@ -25,9 +30,20 @@ module.exports = GameObject = Class({
     },
 
     addColliders: function(){
-        for (var i = 0; i < arguments.length; i++) {
+        for (let i = arguments.length - 1; i > -1; i--) {
             this.addCollider(arguments[i]);
         }
+    },
+
+    getDistanceTo: function(gameObj){
+        const distance = this.getRelativePosition() - gameObj.getRelativePosition();
+        return distance < 0 ? distance * -1 : distance;
+    },
+
+    getRelativePosition: function(){
+        const xCenter = this.position.x + (this.width / 2);
+        const yCenter = this.position.y + (this.height / 2);
+        return xCenter + yCenter;
     },
 
     getBounds: function(nextPosition){
@@ -43,14 +59,18 @@ module.exports = GameObject = Class({
 
         if(!this.colliders.length){ return false; }
 
-        var nextBounds = this.getBounds(nextPosition);
+        const nextBounds = this.getBounds(nextPosition);
 
-        for (var i = this.colliders.length - 1; i > -1; i--) {
+        for (let i = this.colliders.length - 1; i > -1; i--) {
 
-            var collision = nextBounds.down > this.colliders[i].getBounds().up &&
-            nextBounds.left < this.colliders[i].getBounds().right &&
-            nextBounds.right > this.colliders[i].getBounds().left &&
-            nextBounds.up < this.colliders[i].getBounds().down;
+            // if(this.trackingDistance > this.getDistanceTo(this.colliders[i])) { continue; }
+
+            const subjectBounds = this.colliders[i].getBounds();
+
+            const collision = nextBounds.down > subjectBounds.up &&
+            nextBounds.left < subjectBounds.right &&
+            nextBounds.right > subjectBounds.left &&
+            nextBounds.up < subjectBounds.down;
 
             if (collision) { return true; }
         }

@@ -1,7 +1,5 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var Class = require("kaop/Class");
-
-module.exports = GameControls = Class.static({
+module.exports = GameControls = {
     ARROW_LEFT: false,
     ARROW_DOWN: false,
     ARROW_RIGHT: false,
@@ -52,20 +50,25 @@ module.exports = GameControls = Class.static({
         evt.preventDefault();
         this[this.keyMapper[evt.which]] = this.isPressed(evt);
     }
-});
+}
 
-},{"kaop/Class":6}],2:[function(require,module,exports){
-var Class = require("kaop/Class");
+},{}],2:[function(require,module,exports){
+const { extend, override } = require("kaop");
+const MeshObject = require("./MeshObject");
 
-module.exports = GameObject = Class({
+module.exports = GameObject = extend(MeshObject, {
 
     UID: undefined,
-    colliders: [],
-    position: {x: 0, y: 0},
-    width: 0,
-    height: 0,
+    colliders: undefined,
+    width: undefined,
+    height: undefined,
 
-    constructor: function(){},
+    constructor: [override.implement, function(parent, position, vectors){
+        parent(position, vectors);
+        this.colliders = [];
+        this.width = 0;
+        this.height = 0;
+    }],
 
     offSetX: function(nextPosition){
         return nextPosition ?
@@ -82,9 +85,20 @@ module.exports = GameObject = Class({
     },
 
     addColliders: function(){
-        for (var i = 0; i < arguments.length; i++) {
+        for (let i = arguments.length - 1; i > -1; i--) {
             this.addCollider(arguments[i]);
         }
+    },
+
+    getDistanceTo: function(gameObj){
+        const distance = this.getRelativePosition() - gameObj.getRelativePosition();
+        return distance < 0 ? distance * -1 : distance;
+    },
+
+    getRelativePosition: function(){
+        const xCenter = this.position.x + (this.width / 2);
+        const yCenter = this.position.y + (this.height / 2);
+        return xCenter + yCenter;
     },
 
     getBounds: function(nextPosition){
@@ -100,14 +114,18 @@ module.exports = GameObject = Class({
 
         if(!this.colliders.length){ return false; }
 
-        var nextBounds = this.getBounds(nextPosition);
+        const nextBounds = this.getBounds(nextPosition);
 
-        for (var i = this.colliders.length - 1; i > -1; i--) {
+        for (let i = this.colliders.length - 1; i > -1; i--) {
 
-            var collision = nextBounds.down > this.colliders[i].getBounds().up &&
-            nextBounds.left < this.colliders[i].getBounds().right &&
-            nextBounds.right > this.colliders[i].getBounds().left &&
-            nextBounds.up < this.colliders[i].getBounds().down;
+            // if(this.trackingDistance > this.getDistanceTo(this.colliders[i])) { continue; }
+
+            const subjectBounds = this.colliders[i].getBounds();
+
+            const collision = nextBounds.down > subjectBounds.up &&
+            nextBounds.left < subjectBounds.right &&
+            nextBounds.right > subjectBounds.left &&
+            nextBounds.up < subjectBounds.down;
 
             if (collision) { return true; }
         }
@@ -120,11 +138,11 @@ module.exports = GameObject = Class({
     render: function(context){}
 });
 
-},{"kaop/Class":6}],3:[function(require,module,exports){
-var Class = require("kaop/Class");
+},{"./MeshObject":4,"kaop":8}],3:[function(require,module,exports){
+const { createClass } = require("kaop");
 var raf = require("./requestAnimationFrame");
 
-module.exports = GameScene = Class({
+module.exports = GameScene = createClass({
 
     canvasEl: null,
     context: null,
@@ -134,6 +152,7 @@ module.exports = GameScene = Class({
     canRender: false,
     stopped: true,
     collection: {},
+    uicollection: {},
     nextUID: 0,
     amount: 0,
     renderGovernor: null,
@@ -147,20 +166,13 @@ module.exports = GameScene = Class({
     start: function(providedFps){
         if(providedFps) { this.framesPerSec = providedFps; }
         this.stopped = false;
-
         this.loop();
-
-        this.renderGovernor = setInterval(function framecap(){
-            this.canRender = true;
-        }.bind(this), 1000 / this.framesPerSec);
-
-        this.tickGovernor = setInterval(function timeline(){
-            this.performTicks();
-        }.bind(this), 1000 / this.ticksPerSec);
+        this.renderGovernor = setInterval(_ => this.canRender = true, 1000 / this.framesPerSec);
+        this.tickGovernor = setInterval(_ => this.performTicks(), 1000 / this.ticksPerSec);
     },
 
     performTicks: function(){
-        for (var uid in this.collection) {
+        for (let uid in this.collection) {
             if(typeof this.collection[uid].tick === "function"){
                 this.collection[uid].tick();
             }
@@ -175,11 +187,12 @@ module.exports = GameScene = Class({
         if(this.canRender){
             this.canRender = false;
             this.clearCanvas();
-            this.renderCollection();
+            this.renderGameObjects();
+            this.renderUIElements();
         }
 
         if(!this.stopped){
-            raf(this.loop);
+            raf(_ => this.loop());
         }
     },
 
@@ -190,8 +203,14 @@ module.exports = GameScene = Class({
         clearInterval(this.tickGovernor);
     },
 
-    renderCollection: function(){
-        for (var uid in this.collection) {
+    renderUIElements: function(){
+        for (let uid in this.uicollection) {
+            this.renderObject(this.uicollection[uid]);
+        }
+    },
+
+    renderGameObjects: function(){
+        for (let uid in this.collection) {
             this.renderObject(this.collection[uid]);
         }
     },
@@ -208,9 +227,20 @@ module.exports = GameScene = Class({
         this.amount++;
     },
 
+    addUIElement: function(element){
+        element.UID = this.nextUID++;
+        this.uicollection[element.UID] = element;
+    },
+
     addObjects: function(){
-        for (var i = arguments.length - 1; i > -1; i--) {
+        for (let i = arguments.length - 1; i > -1; i--) {
             this.addObject(arguments[i]);
+        }
+    },
+
+    addUIElements: function(){
+        for (let i = arguments.length - 1; i > -1; i--) {
+            this.addUIElement(arguments[i]);
         }
     },
 
@@ -220,244 +250,141 @@ module.exports = GameScene = Class({
     }
 });
 
-},{"./requestAnimationFrame":5,"kaop/Class":6}],4:[function(require,module,exports){
+},{"./requestAnimationFrame":7,"kaop":8}],4:[function(require,module,exports){
+const { createClass } = require("kaop");
+
+module.exports = MeshObject = createClass({
+    vectors: undefined,
+    position: undefined,
+    tracking: 0,
+
+    constructor: function(position, vectors){
+        this.position = {};
+        this.position.x = position.x;
+        this.position.y = position.y;
+        this.vectors = [];
+        this.vectors = vectors;
+
+        if(this.vectors){ this.seekBestTracking(); }
+    },
+
+    setTraking: function (auxVectorPoint){
+        if(auxVectorPoint < 0){ auxVectorPoint *= -1; }
+        if(auxVectorPoint > this.tracking){ this.tracking = auxVectorPoint; }
+    },
+
+    getAbsVector: function(index){
+        const selectedVector = this.vectors[index];
+
+        return {
+            x: selectedVector.x + this.position.x,
+            y: selectedVector.y + this.position.y
+        }
+    },
+
+    seekBestTracking: function(){
+        for (let i = this.vectors.length - 1; i > -1; i--) {
+            for (let point in this.vectors[i]) {
+                this.setTraking(point);
+            }
+        }
+    },
+
+    distanceTo: function(mesh){
+
+        let xDistance = this.position.x - mesh.position.x;
+        let yDistance = this.position.y - mesh.position.y;
+        if(xDistance < 0){ xDistance *= -1; }
+        if(yDistance < 0){ yDistance *= -1; }
+        return xDistance + yDistance;
+    },
+
+    isTouching: function(mesh){},
+});
+
+},{"kaop":8}],5:[function(require,module,exports){
+const { createClass } = require("kaop");
+
+module.exports = UIElement = createClass({
+    UID: undefined,
+    position: undefined,
+    constructor: function(position){
+        this.position = {x: 0, y: 0};
+        this.position.x = position.x;
+        this.position.y = position.y;
+    },
+
+    render: function(context){
+
+    }
+});
+
+},{"kaop":8}],6:[function(require,module,exports){
 module.exports = function(obj){
     return JSON.parse(JSON.stringify(obj));
 }
 
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 module.exports = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
 
-},{}],6:[function(require,module,exports){
-module.exports = require("./lib/index").Class;
+},{}],8:[function(require,module,exports){
+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?module.exports=t():"function"==typeof define&&define.amd?define(t):e.kaop=t()}(this,function(){"use strict";function e(e){return!e.advice}function t(e,t,n){return function(){function i(){if(o++,n[o]){var e=n[o];if(r.isMethod(e)){if(!c.prevented)try{c.result=e.apply(c.scope,c.args)}catch(e){c.exception=e}}else e.call(void 0,c);r.isAsync(e)||c.commit()}else if(c.exception)throw c.exception}var o=-1,c={args:Array.prototype.slice.call(arguments),scope:this,key:t,method:r.getMethodFromArraySignature(n),target:e,exception:void 0,prevented:void 0,result:void 0,commit:i,prevent:function(){c.prevented=!0},handle:function(){var e=c.exception;return delete c.exception,e},skip:function(){o=n.findIndex(r.isMethod)-1}};return i(),c.result}}function n(e,t,n){function r(){"function"==typeof this.constructor&&this.constructor.apply(this,arguments)}r.super=e,r.signature=t;var o=i.wove(r,t);return r.prototype=Object.assign(Object.create(e.prototype),o),r}var r={isMethod:e,isValidArraySignature:function(t){return t.every(function(e){return"function"==typeof e})&&1===t.filter(e).length},getMethodFromArraySignature:function(t){return t.find(e)},isAsync:function(e){return!!e.toString().match(/[a-zA-Z$_]\.commit/)},createInstance:function(e){return new e}},i={advice:function(e){return e.advice=1,e},aspect:function(e){return function(t){return Object.keys(t).reduce(e,t)}},wove:function(e,n){var i=Object.assign({},n);for(var o in i)i[o]instanceof Array&&r.isValidArraySignature(i[o])&&(i[o]=t(e,o,i[o]));return i},createProxyFn:t};return{createClass:function(e){return n(function(){},e)},extend:function(e,t){return n(e,t)},clear:function(e){for(var t in e.signature)e.signature[t]instanceof Array&&r.isValidArraySignature(e.signature[t])&&(e.prototype[t]=r.getMethodFromArraySignature(e.signature[t]));return e},override:{apply:i.advice(function(e){e.target.super.prototype[e.key].apply(e.scope,e.args)}),implement:i.advice(function(e){e.args.unshift(e.target.super.prototype[e.key].bind(e.scope))})},inject:{args:function(){var e=Array.prototype.slice.call(arguments);return i.advice(function(t){if("constructor"!==t.key)throw new Error("inject only available in constructor");t.args=e.map(function(e){return e()})})},assign:function(e){return i.advice(function(t){for(var n in e){var r=e[n];t.scope[n]=r()}})}},provider:{factory:function(e){return function(){return r.createInstance(e)}},singleton:function(e){var t;return function(){return t||(t=r.createInstance(e)),t}}},reflect:i}});
 
-},{"./lib/index":7}],7:[function(require,module,exports){
-var Class = require("./src/Class");
-var Advices = require("./src/Advices");
-var UseExternal = require("./src/UseExternal");
+},{}],9:[function(require,module,exports){
+const { extend, override } = require("kaop");
+var UIElement = require("../common/UIElement");
 
-var lib = {
-    Class: Class,
-    Advices: Advices,
-    use: UseExternal
-};
+module.exports = Display = extend(UIElement, {
 
-if (typeof module === "object") {
-    module.exports = lib;
-} else if (window) {
-    window.kaop = lib;
-}
+    subject: null,
 
-/**
- * built in Advices
- */
+    constructor: [override.implement, function(parent, position, player){
+        parent(position);
 
- /* istanbul ignore next */
-Advices.add(
-    function override() {
-        meta.args.unshift(meta.parentScope[meta.methodName].bind(this));
-    }
-);
+        this.subject = player;
+    }],
 
-},{"./src/Advices":8,"./src/Class":9,"./src/UseExternal":11}],8:[function(require,module,exports){
-var Iteration = require("./Iteration");
-var Utils = require("./Utils");
+    render: function(context){
+        const lineHeight = 11;
+        let linePosition = this.position.y;
 
-module.exports = Advices = {
-    locals: {},
-    pool: [],
-    add: function() {
-        for (var i = 0; i < arguments.length; i++) {
-            Advices.pool.push(arguments[i]);
-        }
-    },
-    bootstrap: function(config) {
-        if (!(
-                config.propertyValue &&
-                Utils.isValidStructure(config.propertyValue) &&
-                Utils.isRightImplemented(config.propertyValue, Advices.pool)
-            )) {
-            return config.propertyValue;
-        }
+        context.fillStyle = "black";
+        context.fillRect(this.position.x, this.position.y, 150, 100);
 
-        return function() {
+        let xtext = "position x: $x";
+        let ytext = "position y: $y";
 
-            var executionProps = {
-                method: Utils.getMethod(config.propertyValue),
-                methodName: config.propertyName,
-                scope: this,
-                parentScope: config.sourceClass.prototype,
-                args: Array.prototype.slice.call(arguments),
-                result: undefined
-            };
+        xtext = xtext.replace("$x", this.subject.position.x);
+        ytext = ytext.replace("$y", this.subject.position.y);
 
-            new Iteration(config.propertyValue, executionProps, Advices.pool, Advices.locals);
+        context.font = "11px Sans";
+        context.fillStyle = "white";
+        context.fillText(xtext, this.position.x, linePosition+=lineHeight);
+        context.fillText(ytext, this.position.x, linePosition+=lineHeight);
 
-            return executionProps.result;
-        };
-    }
-};
+        if(this.subject.colliders && this.subject.colliders.length){
+            let collidersText = "colliders: ";
+            context.fillText(collidersText, this.position.x, linePosition+=lineHeight);
 
-},{"./Iteration":10,"./Utils":12}],9:[function(require,module,exports){
-var Advices = require("./Advices");
+            for (let i = this.subject.colliders.length - 1; i > -1; i--) {
+                const collider = this.subject.colliders[i];
 
-var Class = function(sourceClass, extendedProperties, _static) {
-
-    var inheritedProperties = Object.create(sourceClass.prototype);
-
-    for (var propertyName in extendedProperties) {
-        inheritedProperties[propertyName] = Advices.bootstrap({
-            sourceClass: sourceClass,
-            propertyName: propertyName,
-            propertyValue: extendedProperties[propertyName]
-        });
-    }
-
-    if (!_static) {
-        var extendedClass = function() {
-            try {
-                for (var propertyName in this) {
-                    if (Utils.isFunction(this[propertyName])) {
-                        this[propertyName] = this[propertyName].bind(this);
-                    } else if (extendedProperties.hasOwnProperty(propertyName)) {
-                        // FIXME https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-                        // clone js objects, avoid reference point
-                        var tmp = JSON.parse(JSON.stringify(extendedProperties[propertyName]));
-                        this[propertyName] = tmp;
-                    }
-                }
-            } finally {
-                if (typeof this.constructor === "function") this.constructor.apply(this, arguments);
-                return this;
-            }
-        };
-
-        extendedClass.prototype = inheritedProperties;
-        return extendedClass;
-    } else {
-        return inheritedProperties;
-    }
-};
-
-var exp = function(mainProps) {
-    return Class(function() {}, mainProps);
-};
-exp.inherits = Class;
-exp.static = function(mainProps) {
-    return Class(function() {}, mainProps, true);
-};
-
-module.exports = exp;
-
-},{"./Advices":8}],10:[function(require,module,exports){
-var Utils = require("./Utils");
-
-module.exports = Iteration = function(definitionArray, props, pool, locals) {
-    if (!definitionArray.length) {
-        return;
-    }
-    this.index = -1;
-    this.step = function() {
-        this.index++;
-        var currentStep = definitionArray[this.index];
-        if (typeof currentStep === "function") {
-            props.result = currentStep.apply(props.scope, props.args);
-            this.step();
-        } else if (typeof currentStep === "string") {
-            var step = Utils.getAdviceImp(currentStep);
-            var rawAdviceFn = Utils.getAdviceFn(step.name, pool);
-            var transpiledMethod = Utils.transpileMethod(rawAdviceFn, props, arguments.callee.bind(this), locals);
-            if (step.args) {
-                eval("transpiledMethod.call(props.scope, " + step.args + ")");
-            } else {
-                eval("transpiledMethod.call(props.scope)");
+                const colliderName = "collider: " + collider.UID;
+                const distance = " distance: " + this.subject.distanceTo(collider);
+                context.fillText(colliderName + distance, this.position.x, linePosition+=lineHeight);
             }
         }
-    };
-    this.step();
-};
 
-},{"./Utils":12}],11:[function(require,module,exports){
-var Advices = require("./Advices");
-
-module.exports = UseExternal = function(module){
-    function checkDependency(dep){
-        if(!Advices.locals[dep]) throw new Error("unmet dependency: " + dep);
     }
+});
 
-    module.dependencies.forEach(checkDependency);
+},{"../common/UIElement":5,"kaop":8}],10:[function(require,module,exports){
+const { extend, override } = require("kaop");
+const clone = require("../common/clone");
+const GameObject = require("../common/GameObject");
+const GameControls = require("../common/GameControls");
 
-    module.advices.forEach(Advices.add, Advices);
-};
-
-},{"./Advices":8}],12:[function(require,module,exports){
-module.exports = Utils = {
-    transpileMethod: function(method, meta, next, locals) {
-        var methodToString = method.toString();
-        var functionBody = methodToString
-            .substring(methodToString.indexOf("{") + 1, methodToString.lastIndexOf("}"));
-        var functionArguments = methodToString
-            .substring(methodToString.indexOf("(") + 1, methodToString.indexOf(")"));
-
-        if (!functionBody.match(/[^a-zA-Z_$]next[^a-zA-Z_$0-9]/g)) {
-            functionBody += "\nnext();";
-        }
-
-        var transpiledFunction = "(function(" + functionArguments + ")\n{ " + functionBody + " \n})";
-        var names = Object.keys(locals);
-        for (var i = 0; i < names.length; i++) {
-            eval("var " + names[i] + " = locals[names[i]]");
-        }
-        return eval(transpiledFunction);
-    },
-    getAdviceImp: function(rawAdviceCall) {
-        return {
-            name: rawAdviceCall.split(":")[0],
-            args: rawAdviceCall.split(":")[1]
-        };
-    },
-    isRightImplemented: function(array, advicePool) {
-        var completeAdviceNameList = advicePool
-            .map(function(advice) {
-                return advice.name;
-            });
-        var implementedNames = array.filter(Utils.isString)
-                    .map(function(adviceImplementation){
-                        return adviceImplementation.split(":").shift().trim();
-                    });
-
-        return implementedNames.every(function(adviceName) {
-                                return completeAdviceNameList.indexOf(adviceName) > -1;
-                            });
-    },
-    isValidStructure: function(implementation) {
-        return implementation instanceof Array && implementation.some(Utils.isFunction);
-    },
-    getMethod: function(array) {
-        return array.find(function(item) {
-            return typeof item === "function";
-        });
-    },
-    isFunction: function(item) {
-        return typeof item === "function";
-    },
-    isString: function(item) {
-        return typeof item === "string";
-    },
-    getAdviceFn: function(fname, advicePool) {
-        return advicePool.find(function(adv) {
-            return adv.name === fname;
-        });
-    }
-};
-
-},{}],13:[function(require,module,exports){
-var Class = require("kaop/Class");
-var clone = require("../common/clone");
-var GameObject = require("../common/GameObject");
-var GameControls = require("../common/GameControls");
-
-module.exports = Player = Class.inherits(GameObject, {
+module.exports = Player = extend(GameObject, {
 
     background: "../assets/octocat.png",
     speed: 1.25,
@@ -466,17 +393,18 @@ module.exports = Player = Class.inherits(GameObject, {
     imageHeight: 50,
     width: 30,
     height: 40,
+    tracking: 30,
 
-    constructor: function(position){
+    constructor: [override.apply, function(position){
         this.position.x = position.x;
         this.position.y = position.y;
 
         this.image = new Image;
         this.image.src = this.background;
-    },
+    }],
 
     computeMove: function(){
-        var finalSpeed = this.speed;
+        const finalSpeed = this.speed;
         if(GameControls.SPACE){
             finalSpeed *= 2;
         }
@@ -484,9 +412,9 @@ module.exports = Player = Class.inherits(GameObject, {
     },
 
     tick: function(){
-        var movementPerTick = this.computeMove();
+        const movementPerTick = this.computeMove();
 
-        var nextPosition = clone(this.position);
+        const nextPosition = clone(this.position);
 
         if(GameControls.ARROW_RIGHT){
             nextPosition.x += movementPerTick;
@@ -501,15 +429,15 @@ module.exports = Player = Class.inherits(GameObject, {
             nextPosition.y += movementPerTick;
         }
 
-        if(!this.willCollide(nextPosition)){
+        // if(!this.willCollide(nextPosition)){
             this.position = nextPosition;
-        }
+        // }
     },
 
     render: function(context){
 
-        var imageOffSetX = this.imageWidth - this.width;
-        var imageOffSetY = this.imageHeight - this.height;
+        const imageOffSetX = this.imageWidth - this.width;
+        const imageOffSetY = this.imageHeight - this.height;
 
         context.drawImage(
             this.image,
@@ -521,59 +449,67 @@ module.exports = Player = Class.inherits(GameObject, {
     }
 })
 
-},{"../common/GameControls":1,"../common/GameObject":2,"../common/clone":4,"kaop/Class":6}],14:[function(require,module,exports){
-var Class = require("kaop/Class");
-var GameObject = require("../common/GameObject");
+},{"../common/GameControls":1,"../common/GameObject":2,"../common/clone":6,"kaop":8}],11:[function(require,module,exports){
+const { extend, override } = require("kaop");
+const GameObject = require("../common/GameObject");
 
-module.exports = Wall = Class.inherits(GameObject, {
+module.exports = Wall = extend(GameObject, {
 
-    position: {},
-    to: {},
-    width: 5,
+    pointA: undefined,
+    pointB: undefined,
 
-    constructor: function(from, to){
-        this.position = from;
-        this.to = to;
-    },
-
-    offSetX: function(){
-        return this.to.x;
-    },
-
-    offSetY: function(){
-        return this.to.y;
-    },
+    constructor: [override.implement, function(parent, position, vectors){
+        parent(position, vectors);
+        this.pointA = {};
+        this.pointB = {};
+        this.pointA = this.getAbsVector(0);
+        this.pointB = this.getAbsVector(1);
+    }],
 
     render: function(context){
         context.beginPath();
-        context.moveTo(this.position.x, this.position.y);
-        context.lineTo(this.to.x, this.to.y);
+        context.arc(this.position.x, this.position.y, 5, 0, 2*Math.PI);
         context.stroke();
+        // context.beginPath();
+        // context.moveTo(this.pointA.x, this.pointA.y);
+        // context.lineTo(this.pointB.x, this.pointB.y);
+        // context.stroke();
     }
 })
 
-},{"../common/GameObject":2,"kaop/Class":6}],15:[function(require,module,exports){
-var GameScene = require("../common/GameScene");
-var GameControls = require("../common/GameControls");
-var Player = require("./Player");
-var Wall = require("./Wall");
+},{"../common/GameObject":2,"kaop":8}],12:[function(require,module,exports){
+const GameScene = require("../common/GameScene");
+const GameControls = require("../common/GameControls");
+const Display = require("./Display");
+const Player = require("./Player");
+const Wall = require("./Wall");
 
 window.scene1 = new GameScene("#sampleScene");
-var player = new Player({x: 35, y: 220});
+const player = new Player({x: 35, y: 220});
 
-var leftBox = new Wall({x: 0, y: 0}, {x: 0, y: 500});
-var bottomBox = new Wall({x: 0, y: 500}, {x: 500, y: 500});
-var rightBox = new Wall({x: 500, y: 500}, {x: 500, y: 0});
-var topBox = new Wall({x: 500, y: 0}, {x: 0, y: 0});
-var wall1 = new Wall({x: 0, y: 200}, {x: 100, y: 200});
-var wall2 = new Wall({x: 100, y: 200}, {x: 100, y: 400});
+const wall1 = new Wall({x: 100, y: 200}, [{x: 10, y: 200}, {x: -100, y: 0}]);
 
-scene1.addObjects(player, wall1, wall2, leftBox, bottomBox, rightBox, topBox);
 
-player.addColliders(wall1, wall2, leftBox, bottomBox, rightBox, topBox);
+// var leftBox = new Wall({x: 0, y: 0}, {x: 0, y: 500});
+// var bottomBox = new Wall({x: 0, y: 500}, {x: 500, y: 500});
+// var rightBox = new Wall({x: 500, y: 500}, {x: 500, y: 0});
+// var topBox = new Wall({x: 500, y: 0}, {x: 0, y: 0});
+// var wall1 = new Wall({x: 0, y: 200}, {x: 100, y: 200});
+// var wall2 = new Wall({x: 100, y: 200}, {x: 100, y: 400});
+
+const display = new Display({x: 25, y: 25}, player);
+
+// scene1.addObjects(player, wall1, wall2, leftBox, bottomBox, rightBox, topBox);
+scene1.addObjects(player, wall1);
+
+
+player.addColliders(wall1);
+// player.addColliders(wall1, wall2, leftBox, bottomBox, rightBox, topBox);
+
+scene1.addUIElement(display);
 
 GameControls.keyboard();
 
 scene1.start(70);
 
-},{"../common/GameControls":1,"../common/GameScene":3,"./Player":13,"./Wall":14}]},{},[15]);
+},{"../common/GameControls":1,"../common/GameScene":3,"./Display":9,"./Player":10,"./Wall":11}]},{},[12]);

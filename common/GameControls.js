@@ -1,6 +1,4 @@
-var Class = require("kaop/Class");
-
-module.exports = GameControls = Class.static({
+module.exports = GameControls = {
     ARROW_LEFT: false,
     ARROW_DOWN: false,
     ARROW_RIGHT: false,
@@ -51,4 +49,4 @@ module.exports = GameControls = Class.static({
         evt.preventDefault();
         this[this.keyMapper[evt.which]] = this.isPressed(evt);
     }
-});
+}

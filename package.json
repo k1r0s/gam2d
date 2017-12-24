@@ -11,5 +11,8 @@
   "license": "ISC",
   "devDependencies": {
     "browserify": "^14.4.0"
+  },
+  "dependencies": {
+    "kaop": "^4.0.0"
   }
 }

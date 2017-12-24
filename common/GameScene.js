@@ -1,7 +1,7 @@
-var Class = require("kaop/Class");
+const { createClass } = require("kaop");
 var raf = require("./requestAnimationFrame");
 
-module.exports = GameScene = Class({
+module.exports = GameScene = createClass({
 
     canvasEl: null,
     context: null,
@@ -11,6 +11,7 @@ module.exports = GameScene = Class({
     canRender: false,
     stopped: true,
     collection: {},
+    uicollection: {},
     nextUID: 0,
     amount: 0,
     renderGovernor: null,
@@ -24,20 +25,13 @@ module.exports = GameScene = Class({
     start: function(providedFps){
         if(providedFps) { this.framesPerSec = providedFps; }
         this.stopped = false;
-
         this.loop();
-
-        this.renderGovernor = setInterval(function framecap(){
-            this.canRender = true;
-        }.bind(this), 1000 / this.framesPerSec);
-
-        this.tickGovernor = setInterval(function timeline(){
-            this.performTicks();
-        }.bind(this), 1000 / this.ticksPerSec);
+        this.renderGovernor = setInterval(_ => this.canRender = true, 1000 / this.framesPerSec);
+        this.tickGovernor = setInterval(_ => this.performTicks(), 1000 / this.ticksPerSec);
     },
 
     performTicks: function(){
-        for (var uid in this.collection) {
+        for (let uid in this.collection) {
             if(typeof this.collection[uid].tick === "function"){
                 this.collection[uid].tick();
             }
@@ -52,11 +46,12 @@ module.exports = GameScene = Class({
         if(this.canRender){
             this.canRender = false;
             this.clearCanvas();
-            this.renderCollection();
+            this.renderGameObjects();
+            this.renderUIElements();
         }
 
         if(!this.stopped){
-            raf(this.loop);
+            raf(_ => this.loop());
         }
     },
 
@@ -67,8 +62,14 @@ module.exports = GameScene = Class({
         clearInterval(this.tickGovernor);
     },
 
-    renderCollection: function(){
-        for (var uid in this.collection) {
+    renderUIElements: function(){
+        for (let uid in this.uicollection) {
+            this.renderObject(this.uicollection[uid]);
+        }
+    },
+
+    renderGameObjects: function(){
+        for (let uid in this.collection) {
             this.renderObject(this.collection[uid]);
         }
     },
@@ -85,9 +86,20 @@ module.exports = GameScene = Class({
         this.amount++;
     },
 
+    addUIElement: function(element){
+        element.UID = this.nextUID++;
+        this.uicollection[element.UID] = element;
+    },
+
     addObjects: function(){
-        for (var i = arguments.length - 1; i > -1; i--) {
+        for (let i = arguments.length - 1; i > -1; i--) {
             this.addObject(arguments[i]);
+        }
+    },
+
+    addUIElements: function(){
+        for (let i = arguments.length - 1; i > -1; i--) {
+            this.addUIElement(arguments[i]);
         }
     },
 

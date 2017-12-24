@@ -23,7 +23,7 @@ module.exports = Player = extend(GameObject, {
     }],
 
     computeMove: function(){
-        const finalSpeed = this.speed;
+        let finalSpeed = this.speed;
         if(GameControls.SPACE){
             finalSpeed *= 2;
         }

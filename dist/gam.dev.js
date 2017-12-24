@@ -386,7 +386,7 @@ const GameControls = require("../common/GameControls");
 
 module.exports = Player = extend(GameObject, {
 
-    background: "../assets/octocat.png",
+    background: "assets/octocat.png",
     speed: 1.25,
     step: 1,
     imageWidth: 50,

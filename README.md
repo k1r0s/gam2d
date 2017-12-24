@@ -6,8 +6,6 @@ Launch:
 `npm run build`
 `http-server` (use what ever static server you love)
 
-You have to serve `./` and browse `/samples/default.html`  (tested against chrome/chromium)
-
 > warning: keyboard is disabled by the game to track arrows and space key. That could mean you can't reload page with CTRL + R or open DevTools with F12 (neither CTRL + SHIFT + I). Use `inspect element` instead.
 
 ---
